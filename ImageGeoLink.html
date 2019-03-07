@@ -97,10 +97,11 @@
 				}
 			);			
 		}
-		document.getElementById('file-input').onclick = function(e){
-			IO_json ('geoExifFiles', /*e.target.files[0]*/ 'Files.lst', createGeoExif, this);
+		IO_json ('geoExifFiles', /*e.target.files[0]*/ 'Files.lst', createGeoExif, this);
+		/*document.getElementById('file-input').onclick = function(e){
+			IO_json ('geoExifFiles', /*e.target.files[0] 'Files.lst', createGeoExif, this);
 		}
-		document.getElementById('file-input').click();
+		document.getElementById('file-input').click();*/
 	</script>
 </body>
 

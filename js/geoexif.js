@@ -65,13 +65,17 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		pp.className = 'existgeo';
 		var pl = document.createElement('div');
 		pl.className = 'existgeo';
-		pp.innerText = 'φ:' + dec(this.EXIF_obj.GPSLatitude);
-		pl.innerText = 'λ:' + dec(this.EXIF_obj.GPSLongitude);
+		var lat = dec(this.EXIF_obj.GPSLatitude);
+		var lon = dec(this.EXIF_obj.GPSLongitude);
+		pp.innerText = 'φ:' + lat;
+		pl.innerText = 'λ:' + lon;
+		this.lat = lat;
+		this.lon = lon;
 		this.parentNode.appendChild(pp);
 		this.parentNode.appendChild(pl);
 	};
 	function loaded() {
-		console.log (this.src);
+		console.log(this.src);
 		EXIF.getData(this, deposeExif);
 	}
 
@@ -88,9 +92,15 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 			this.geoExif.geoimg = this;
 			if (this.geoExif.options.adrPan)
 				this.geoExif.options.adrPan.innerText = this.src;
+			if (this.lon && this.lat) {
+				this.geoExif.workMap.map.setView([this.lat, this.lon]);
+				var m = new L.Marker([this.lat, this.lon]);
+				m.bindPopup(' Exif ' + this.src);
+				this.geoExif.workMap.map.addLayer(m);
+			}
 		}
 		d.appendChild(i);
-		photoDiv.appendChild(d);		
+		photoDiv.appendChild(d);
 	}
 	photoDiv.scrollTo(0, 0);
 }
@@ -123,13 +133,7 @@ GeoExif.prototype.SetTag = function (e) {
 		comment: comm
 	};
 	geoimg.geoParam = ge.result[geoimg.index_file_el];
-	var ico = new L.Icon({
-		iconUrl: 'lib/images/marker-icon.png',
-		shadowUrl: null,
-		iconAnchor: [13, 42],
-		popupAnchor: [0, 41]
-	});
-	var m = new L.Marker([lat, lon]/*, { icon: ico }*/);
+	var m = new L.Marker([lat, lon]);
 	m.bindPopup(' Картинка ' + src);
 	ge.workMap.map.addLayer(m);
 	ge.geoimg = null;
@@ -142,11 +146,11 @@ http://overpass.osm.rambler.ru/cgi/interpreter?data=[out:json];way[name%3D%22Gie
 (
   way
     
-    (59.695, 30.4621,59.6955, 30.4622);
+	(59.695, 30.4621,59.6955, 30.4622);
   >;
 );
 out;
-
+	
 (node(59.695, 30.4621,59.6955, 30.4625);<;);out; 
 */
 
