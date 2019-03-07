@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>ImageGeoLink</title>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
+	<style type="text/css">
+		@page {
+			margin: 2cm
+		}
+
+		img.photo {
+			border: 4;
+			width: 500px;
+			image-orientation: from-image;
+		}
+		.existgeo {
+			font-size: 70%;
+		}		
+	</style>
+	<script src="lib/leaflet.js"></script>
+	<script src="js/geoexif.js"></script>
+	<script src="lib/exif.js"></script>
+	<script src="lib/leaflet-providers.js"></script>
+</head>
+
+<body>	
+	<input id="file-input" type="file" name="name" style="display: none;" />
+	<div id="geo" style="margin-left: 50%;  height:98hv; position: absolute;">
+		<div id="mapid" style="height: 400px;"></div>
+		<textarea id="adr" rows="2" cols="60"></textarea>
+		<input id="comment" style="width: 90%"></input>
+		<textarea id="geo_log" rows="10" cols="60"></textarea>
+		<button onclick="geoexif.exifSh();">Создать скрипт для sh</button>
+		<textarea id="exif_log" rows="10" cols="60"></textarea>
+		<button onclick="geoexif.setInner();">Показать готовый код</button>
+		<textarea id="html_log" rows="10" cols="60"></textarea>
+		<button onclick="geoexif.OSM_data();">Загрузить данные</button>
+	</div>
+	<div id="photos" style="    height: 94vh;
+    width: 50%;
+	overflow-y: scroll;
+	border: 4px #ddd solid;
+    box-shadow: 0 0 3px 3px #ccc;
+    float: left;
+	padding-bottom: 15px;">
+	<p>Fotos!</p>
+	</div>
+	<script>		
+		function IO_json(code, URI, retf, context, type = 'application/json') {
+			IO_json.status[code] = false;
+			var req = new XMLHttpRequest();
+			req.overrideMimeType(type);
+			req._context = context;
+			req._retf = retf;
+			req._code = code;
+			req.open('GET', URI, true);
+			req.addEventListener('load', function (req) {
+				var code = req.currentTarget._code;
+				IO_json.status[code] = true;
+				if (req.currentTarget.status != 200) {
+					// обработать ошибку
+					alert('' + '\n' + req.currentTarget.status + ': ' + req.currentTarget.statusText);
+				} else {
+					var c = req.currentTarget._context;
+					console.log(code + " ✔")
+					retf({
+						req: req,
+						context: c
+					});
+				}
+			}
+			);
+			req.send(null);
+		}
+		IO_json.status = {};
+		var geoexif = null;
+
+		function createGeoExif(ret) {
+			var files = ret.req.currentTarget.responseText;
+			// Добавлениие географических координат к фотографиям
+			var center = [59.6955, 30.4618];
+			geoexif = new GeoExif(
+				document.getElementById('photos'),
+				document.getElementById('mapid'),
+				files,
+				center,
+				{
+					mapProvider: ['Esri.WorldImagery', 'OpenTopoMap', 'OpenStreetMap.Mapnik'],
+					mapName: ['Снимки от Esri', 'Топографическая карта', 'ОСМ/Мапник'],
+					geoLog: function(s) {
+						document.getElementById('geo_log').innerHTML += s;
+					},
+					adrPan: document.getElementById('adr')
+				}
+			);			
+		}
+		document.getElementById('file-input').onclick = function(e){
+			IO_json ('geoExifFiles', /*e.target.files[0]*/ 'Files.lst', createGeoExif, this);
+		}
+		document.getElementById('file-input').click();
+	</script>
+</body>
+
+</html>
