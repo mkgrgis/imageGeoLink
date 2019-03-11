@@ -40,6 +40,34 @@ function mapDiv(div, centerGeo, provider, providerName, Z, controls) {
 	}
 }
 
+function IO_xhr (code, URI, retf, context, type = 'application/xml'){
+	IO_xhr.status[code] = false;
+	var req = new XMLHttpRequest();
+	req.overrideMimeType(type);
+	req._context = context;
+	req._retf = retf;
+	req._code = code;	
+	req.open('GET', URI, true);
+	req.addEventListener('load', function(req) {
+		var code = req.currentTarget._code;
+		IO_xhr.status[code] = true;
+		if (req.currentTarget.status != 200) {
+			// обработать ошибку
+			alert( '' + '\n' +req.currentTarget.status + ': ' + req.currentTarget.statusText ); 			
+		  } else {
+		var c = req.currentTarget._context;		
+		console.log( code + " ✔")
+		retf ({
+			req: req,
+			context : c
+			});
+		}
+	}
+	);
+	req.send(null);
+}
+IO_xhr.status = {};
+
 function GeoExif(photoDiv, mapDiv_, files, center, options) {
 	this.options = options;
 	// Инициализация карты
@@ -57,56 +85,59 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 	this.workMap.map.geoexif = this;
 	this.workMap.map.on('click', this.SetTag);
 
-	function deposeExif() {
+	function deposeExif(exif_obj, img) {
 		function dec(a) {
 			return a[0] + a[1] / 60.0 + a[2] / 3600.0;
 		}
-		var a = img.src.split('/');
-		console.log( 'ok' + a[a.length-1]);
-		this.EXIF_obj = EXIF.getAllTags(this);
+		var lat = dec(exif_obj.GPSLatitude);
+		var lon = dec(exif_obj.GPSLongitude);
+
 		var pp = document.createElement('div');
 		pp.className = 'existgeo';
 		var pl = document.createElement('div');
 		pl.className = 'existgeo';
-		var lat = dec(this.EXIF_obj.GPSLatitude);
-		var lon = dec(this.EXIF_obj.GPSLongitude);
+		
 		pp.innerText = 'φ:' + lat;
 		pl.innerText = 'λ:' + lon;
-		if (this.EXIF_obj.UserComment)
-			this.alt = this.EXIF_obj.UserComment;
-		this.lat = lat;
-		this.lon = lon;
-		this.parentNode.appendChild(pp);
-		this.parentNode.appendChild(pl);
+		if (exif_obj.UserComment)
+			img.alt = exif_obj.UserComment;
+		img.lat = lat;
+		img.lon = lon;
+		img.parentNode.appendChild(pp);
+		img.parentNode.appendChild(pl);
 	};
 	function loaded() {
-		var img = this;
-		var a = img.src.split('/');
-		console.log(a[a.length-1]);
-
+		if (this.src != this.src__) {
+			var img = this;
+			var a = img.src.split('/');
+			console.log(a[a.length - 1]);
+			this.onmouseover = null;
+		}
 	}
 
 	// Инициализация фотогруппы
-	this.file_addr = files.replace('\r','').split('\n'); // JSON.stringify(allMetaData, null, "\t");
+	this.file_addr = files.replace('\r', '').split('\n'); // JSON.stringify(allMetaData, null, "\t");
 	for (var i_fa in this.file_addr) {
 		var d = document.createElement('div');
 		var i = document.createElement('img');
 		i.className = 'photo';
 		i.src__ = this.file_addr[i_fa];
 
-var exif = new Exif(i.src__[0]=='/' ? 'file://' + i.src__ : i.src__, {
-  done: function(tags) {
-    console.log(tags);
-  }
-});
-
-//		EXIF.getData(blob, deposeExif);
+		var exif_obj = new Exif(i.src__[0] == '/' ? 'file://' + i.src__ : i.src__, {
+			ignored: [],
+			base_image_obj: i,
+			done: function (tags) {
+				deposeExif(tags, this.options.base_image_obj);
+				var a = this.options.base_image_obj.src__.split('/');
+				console.log('exif: ' + a[a.length - 1]);
+			}
+		});		
 		i.src = 'null.png';
-		
+
 		i.geoExif = this;
 		i.index_file_el = i_fa;
 		i.onmouseover = function () {
-			if (this.src != this.src__){
+			if (this.src != this.src__) {
 				this.addEventListener('load', loaded);
 				this.src = this.src__;
 			}
@@ -168,18 +199,6 @@ GeoExif.prototype.SetTag = function (e) {
 	if (ge.options.adrPan)
 		ge.options.adrPan.innerText = '';
 }
-/*
-http://overpass.osm.rambler.ru/cgi/interpreter?data=[out:json];way[name%3D%22Gielgenstra%C3%9Fe%22]%2850.7%2C7.1%2C50.8%2C7.25%29%3Bout%3B
-(
-  way
-    
-	(59.695, 30.4621,59.6955, 30.4622);
-  >;
-);
-out;
-	
-(node(59.695, 30.4621,59.6955, 30.4625);<;);out; 
-*/
 
 function download(data, filename, type) {
 	var file = new Blob([data], { type: type });
@@ -206,10 +225,38 @@ GeoExif.prototype.exifSh = function () {
 	download(sh_text, 'geofix.sh', 'application');
 }
 
+GeoExif.prototype.divHtmlGeoAlbum = function () {
+	var html_text = '<!DOCTYPE html>\n<html>\n<head>\n<title>geoImg</title>\n</head>\n<body>	';
+	for (var i in this.result) {
+		var e = this.result[i];
+		var exif = '<div coordinates="[ '+ e.lon + ', ' + e.lat + ' ]"><a href="' + this.file_addr[e.index_file_el] + '"><img src="' + this.file_addr[e.index_file_el] + '"></a></div>\n';
+		html_text += exif;
+	} 
+	html_text += '</body>\n</html>';
+	download(html_text, 'geofix.html', 'application');
+}
+
 GeoExif.prototype.OSM_data = function () {
-	var bounds = workMap.getBounds();
-	var x = 'http://www.openstreetmap.org/api/0.6/map?bbox=' + bounds.toBBoxString();
-	//.getSouth() + ',' + bounds.getWest() + ',' + bounds.getNorth() + ',' + bounds.getEast() + ''
-	// http://www.openstreetmap.org/api/0.6/map?bbox=30.453543663024906,59.694972268396796,30.479078292846683,59.69982268815299
-	alert(x);
+	var bounds = this.workMap.map.getBounds();
+	var adr = 'http://www.openstreetmap.org/api/0.6/map?bbox=' + bounds.toBBoxString();
+	alert(adr);
+	IO_xhr('OSMXML', adr, function(ret) {
+		var XML = ret.req.currentTarget.responseXML;
+		alert(JSON.stringify(XML));		
+	}, this, 'application/xml');	
+	
+
+	
+	/*
+	http://overpass.osm.rambler.ru/cgi/interpreter?data=[out:json];way[name%3D%22Gielgenstra%C3%9Fe%22]%2850.7%2C7.1%2C50.8%2C7.25%29%3Bout%3B
+	(
+	  way
+		
+		(59.695, 30.4621,59.6955, 30.4622);
+	  >;
+	);
+	out;
+		
+	(node(59.695, 30.4621,59.6955, 30.4625);<;);out; 
+	*/
 }
