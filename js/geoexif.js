@@ -43,12 +43,13 @@ function mapDiv(div, centerGeo, provider, providerName, Z, controls) {
 function GeoExif(photoDiv, mapDiv_, files, center, options) {
 	this.options = options;
 	// Инициализация карты
+	this.center0 = center;
 	this.workMap = new mapDiv(
 		mapDiv_,
 		center,
 		this.options.mapProvider ? this.options.mapProvider : 'OpenStreetMap.Mapnik',
 		this.options.mapName ? this.options.mapName : 'ОСМ/Мапник',
-		this.options.mapZ ? this.options.mapZ : { ini: 10, min: 1, max: 17 },
+		this.options.mapZ ? this.options.mapZ : { ini: 10, min: 1, max: 21 },
 		true
 	);
 	this.geoimg = {};
@@ -60,6 +61,8 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		function dec(a) {
 			return a[0] + a[1] / 60.0 + a[2] / 3600.0;
 		}
+		var a = img.src.split('/');
+		console.log( 'ok' + a[a.length-1]);
 		this.EXIF_obj = EXIF.getAllTags(this);
 		var pp = document.createElement('div');
 		pp.className = 'existgeo';
@@ -69,25 +72,45 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		var lon = dec(this.EXIF_obj.GPSLongitude);
 		pp.innerText = 'φ:' + lat;
 		pl.innerText = 'λ:' + lon;
+		if (this.EXIF_obj.UserComment)
+			this.alt = this.EXIF_obj.UserComment;
 		this.lat = lat;
 		this.lon = lon;
 		this.parentNode.appendChild(pp);
 		this.parentNode.appendChild(pl);
 	};
 	function loaded() {
-		console.log(this.src);
-		EXIF.getData(this, deposeExif);
+		var img = this;
+		var a = img.src.split('/');
+		console.log(a[a.length-1]);
+
 	}
 
 	// Инициализация фотогруппы
-	this.file_addr = files.split('\r\n'); // JSON.stringify(allMetaData, null, "\t");
+	this.file_addr = files.replace('\r','').split('\n'); // JSON.stringify(allMetaData, null, "\t");
 	for (var i_fa in this.file_addr) {
 		var d = document.createElement('div');
 		var i = document.createElement('img');
-		i.addEventListener('load', loaded);
-		i.src = this.file_addr[i_fa];
+		i.className = 'photo';
+		i.src__ = this.file_addr[i_fa];
+
+var exif = new Exif(i.src__[0]=='/' ? 'file://' + i.src__ : i.src__, {
+  done: function(tags) {
+    console.log(tags);
+  }
+});
+
+//		EXIF.getData(blob, deposeExif);
+		i.src = 'null.png';
+		
 		i.geoExif = this;
 		i.index_file_el = i_fa;
+		i.onmouseover = function () {
+			if (this.src != this.src__){
+				this.addEventListener('load', loaded);
+				this.src = this.src__;
+			}
+		}
 		i.onclick = function () {
 			this.geoExif.geoimg = this;
 			if (this.geoExif.options.adrPan)
@@ -97,6 +120,7 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 				var m = new L.Marker([this.lat, this.lon]);
 				m.bindPopup(' Exif ' + this.src);
 				this.geoExif.workMap.map.addLayer(m);
+				this.L_layer = m;
 			}
 		}
 		d.appendChild(i);
@@ -135,6 +159,9 @@ GeoExif.prototype.SetTag = function (e) {
 	geoimg.geoParam = ge.result[geoimg.index_file_el];
 	var m = new L.Marker([lat, lon]);
 	m.bindPopup(' Картинка ' + src);
+	if (geoimg.L_layer)
+		ge.workMap.map.removeLayer(geoimg.L_layer);
+	geoimg.L_layer = m;
 	ge.workMap.map.addLayer(m);
 	ge.geoimg = null;
 	document.getElementById('comment').value = '';
@@ -173,7 +200,7 @@ GeoExif.prototype.exifSh = function () {
 	var sh_text = '#!/bin/sh\n';
 	for (var i in this.result) {
 		var e = this.result[i];
-		var exif = 'exiftool −overwrite_original_in_place -GPSLongitude="' + e.lon + '" -GPSLatitude="' + e.lat + (e.comment ? '" -UserComment="' + e.comment + '" ' : '" ') + this.file_addr[e.index_file_el] + ';\n';
+		var exif = 'exiftool −overwrite_original_in_place -GPSLongitude="' + e.lon + '" -GPSLatitude="' + e.lat + (e.comment ? '" -UserComment="' + e.comment + '" ' : '" ') + '"' + this.file_addr[e.index_file_el] + '";\n';
 		sh_text += exif;
 	} // sh_text += '\n';	
 	download(sh_text, 'geofix.sh', 'application');

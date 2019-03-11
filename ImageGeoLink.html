@@ -5,7 +5,7 @@
 	<title>ImageGeoLink</title>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.1/dist/leaflet.css" />
+	<link rel="stylesheet" href="lib/leaflet.css" />
 	<style type="text/css">
 		@page {
 			margin: 2cm
@@ -22,7 +22,7 @@
 	</style>
 	<script src="lib/leaflet.js"></script>
 	<script src="js/geoexif.js"></script>
-	<script src="lib/exif.js"></script>
+	<script src="js/exif.js"></script>
 	<script src="lib/leaflet-providers.js"></script>
 </head>
 
@@ -88,15 +88,17 @@
 				files,
 				center,
 				{
-					mapProvider: ['Esri.WorldImagery', 'OpenTopoMap', 'OpenStreetMap.Mapnik'],
-					mapName: ['Снимки от Esri', 'Топографическая карта', 'ОСМ/Мапник'],
+					mapProvider: ['OpenTopoMap', 'Esri.WorldImagery',  'OpenStreetMap.Mapnik'],
+					mapName: ['Топографическая карта', 'Снимки от Esri', 'ОСМ/Мапник'],
 					geoLog: function(s) {
 						document.getElementById('geo_log').innerHTML += s;
 					},
-					adrPan: document.getElementById('adr')
+					adrPan: document.getElementById('adr'),
+					mapZ : { ini: 17, min: 1, max: 21 }
 				}
 			);			
 		}
+		debug = true;
 		IO_json ('geoExifFiles', /*e.target.files[0]*/ 'Files.lst', createGeoExif, this);
 		/*document.getElementById('file-input').onclick = function(e){
 			IO_json ('geoExifFiles', /*e.target.files[0] 'Files.lst', createGeoExif, this);
