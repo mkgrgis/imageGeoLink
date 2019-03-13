@@ -87,11 +87,45 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 
 	function deposeExif(exif_obj, img) {
 		function dec(a) {
+			if (typeof a == 'undefined')
+				return null;
 			return a[0] + a[1] / 60.0 + a[2] / 3600.0;
 		}
+		function decodeUTF8(data)
+  {
+    const extraByteMap = [ 1, 1, 1, 1, 2, 2, 3, 0 ];
+    var count = data.length;
+    var str = "";
+    
+    for (var index = 0;index < count;)
+    {
+      var ch = data[index++];
+      if (ch & 0x80)
+      {
+        var extra = extraByteMap[(ch >> 3) & 0x07];
+        if (!(ch & 0x40) || !extra || ((index + extra) > count))
+          return null;
+        
+        ch = ch & (0x3F >> extra);
+        for (;extra > 0;extra -= 1)
+        {
+          var chx = data[index++];
+          if ((chx & 0xC0) != 0x80)
+            return null;
+          
+          ch = (ch << 6) | (chx & 0x3F);
+        }
+      }
+      
+      str += String.fromCharCode(ch);
+    }
+    
+    return str;
+  }
 		var lat = dec(exif_obj.GPSLatitude);
 		var lon = dec(exif_obj.GPSLongitude);
-
+		if (lat == null || lon == null)
+			return;
 		var pp = document.createElement('div');
 		pp.className = 'existgeo';
 		var pl = document.createElement('div');
@@ -100,7 +134,7 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		pp.innerText = 'φ:' + lat;
 		pl.innerText = 'λ:' + lon;
 		if (exif_obj.UserComment)
-			img.alt = exif_obj.UserComment;
+			img.alt = decodeUTF8(exif_obj.UserComment);
 		img.lat = lat;
 		img.lon = lon;
 		img.parentNode.appendChild(pp);
@@ -121,9 +155,12 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		var d = document.createElement('div');
 		var i = document.createElement('img');
 		i.className = 'photo';
+		if (! this.file_addr[i_fa])
+			break;
 		i.src__ = this.file_addr[i_fa];
-
-		var exif_obj = new Exif(i.src__[0] == '/' ? 'file://' + i.src__ : i.src__, {
+// i.src__[0] == '/' ? 'file://' + i.src__ :
+		console.log('exif -> ' + i.src__);
+		var exif_obj = new Exif( i.src__, {
 			ignored: [],
 			base_image_obj: i,
 			done: function (tags) {
@@ -144,6 +181,8 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		}
 		i.onclick = function () {
 			this.geoExif.geoimg = this;
+			if (this.alt)
+				document.getElementById('comment').value = this.alt;
 			if (this.geoExif.options.adrPan)
 				this.geoExif.options.adrPan.innerText = this.src;
 			if (this.lon && this.lat) {
@@ -219,7 +258,7 @@ GeoExif.prototype.exifSh = function () {
 	var sh_text = '#!/bin/sh\n';
 	for (var i in this.result) {
 		var e = this.result[i];
-		var exif = 'exiftool −overwrite_original_in_place -GPSLongitude="' + e.lon + '" -GPSLatitude="' + e.lat + (e.comment ? '" -UserComment="' + e.comment + '" ' : '" ') + '"' + this.file_addr[e.index_file_el] + '";\n';
+		var exif = 'exiftool −overwrite_original_in_place "' + this.file_addr[e.index_file_el] + '" -XMP:GPSLongitude="' + e.lon + '" -XMP:GPSLatitude="' + e.lat + '" ' + (e.comment ? ' -UserComment="' + e.comment + '" ' : '') + ' -GPSMapDatum="WGS-84" -GPSVersionID="2.3.0.0";\n';
 		sh_text += exif;
 	} // sh_text += '\n';	
 	download(sh_text, 'geofix.sh', 'application');
