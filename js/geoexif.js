@@ -133,21 +133,15 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		
 		pp.innerText = 'φ:' + lat;
 		pl.innerText = 'λ:' + lon;
-		if (exif_obj.UserComment)
-			img.alt = decodeUTF8(exif_obj.UserComment);
+		if (exif_obj.UserComment){
+			var uc = decodeUTF8(exif_obj.UserComment);
+			img.alt = uc;
+		}
 		img.lat = lat;
 		img.lon = lon;
 		img.parentNode.appendChild(pp);
 		img.parentNode.appendChild(pl);
-	};
-	function loaded() {
-		if (this.src != this.src__) {
-			var img = this;
-			var a = img.src.split('/');
-			console.log(a[a.length - 1]);
-			this.onmouseover = null;
-		}
-	}
+	};	
 
 	// Инициализация фотогруппы
 	this.file_addr = files.replace('\r', '').split('\n'); // JSON.stringify(allMetaData, null, "\t");
@@ -174,29 +168,48 @@ function GeoExif(photoDiv, mapDiv_, files, center, options) {
 		i.geoExif = this;
 		i.index_file_el = i_fa;
 		i.onmouseover = function () {
-			if (this.src != this.src__) {
-				this.addEventListener('load', loaded);
-				this.src = this.src__;
-			}
+			GeoExif.LoadImage(this);
 		}
 		i.onclick = function () {
 			this.geoExif.geoimg = this;
-			if (this.alt)
-				document.getElementById('comment').value = this.alt;
-			if (this.geoExif.options.adrPan)
-				this.geoExif.options.adrPan.innerText = this.src;
-			if (this.lon && this.lat) {
-				this.geoExif.workMap.map.setView([this.lat, this.lon]);
-				var m = new L.Marker([this.lat, this.lon]);
-				m.bindPopup(' Exif ' + this.src);
-				this.geoExif.workMap.map.addLayer(m);
-				this.L_layer = m;
-			}
+			GeoExif.DataFromImage(this);			
 		}
 		d.appendChild(i);
 		photoDiv.appendChild(d);
 	}
 	photoDiv.scrollTo(0, 0);
+}
+
+GeoExif.LoadImage = function (i){
+	function loaded() {
+		if (this.src != this.src__) {
+			var img = this;
+			var a = img.src.split('/');
+			console.log(a[a.length - 1]);
+			this.onmouseover = null;
+		}
+	}
+	if (i.src != i.src__) {
+		i.addEventListener('load', loaded);
+		i.src = i.src__;
+		if (i.lat && i.lon){
+			GeoExif.DataFromImage(i);
+		}
+	}
+}
+
+GeoExif.DataFromImage = function (i){
+	if (i.alt)
+		document.getElementById('comment').value = i.alt;
+	if (i.geoExif && i.geoExif.options && i.geoExif.options.adrPan)
+		i.geoExif.options.adrPan.innerText = i.src;
+	if (i.lon && i.lat) {
+		i.geoExif.workMap.map.setView([i.lat, i.lon]);
+		var m = new L.Marker([i.lat, i.lon]);
+		m.bindPopup(' Exif ' + i.src);
+		i.geoExif.workMap.map.addLayer(m);
+		i.L_layer = m;
+	}
 }
 
 GeoExif.prototype.SetTag = function (e) {
