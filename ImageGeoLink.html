@@ -86,7 +86,7 @@
 			geoexif = new GeoExif(
 				document.getElementById('photos'),
 				document.getElementById('mapid'),
-				files,
+				files.replace('\r', '').split('\n'), // JSON.stringify(allMetaData, null, "\t");,
 				center,
 				{
 					mapProvider: ['OpenTopoMap', 'Esri.WorldImagery',  'OpenStreetMap.Mapnik'],
